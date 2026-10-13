@@ -45,7 +45,7 @@ int main(void) {
     uthread_t victims[N_VICTIMS];
     for (int i = 0; i < N_VICTIMS; ++i) {
         if (uthread_create(&victims[i], victim_func, (void *)(uintptr_t)i) == -1) {
-            printf("main: uthread_create() failed\n");
+            perror("main: uthread_create() failed");
             return -1;
         }
     }
@@ -54,7 +54,7 @@ int main(void) {
     uthread_t parents[N_PARENTS];
     for (int i = 0; i < N_PARENTS; ++i) {
         if (uthread_create(&parents[i], parent_func, (void *)(uintptr_t)i) == -1) {
-            printf("main: uthread_create() failed\n");
+            perror("main: uthread_create() failed");
             return -1;
         }
     }

@@ -1,4 +1,6 @@
 #define _GNU_SOURCE
+#include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -29,16 +31,11 @@ static int reused_slots = 0;
 
 void uthread_yield() {
     int prev = cur_t;
-    int i;
-    int next;
-    int err;
-    for (i = 1; i < n_threads; ++i) {
-        next = (prev + i) % n_threads;
+    for (int i = 1; i < n_threads; ++i) {
+        int next = (prev + i) % n_threads;
         if (!threads[next]->is_finished) {
             cur_t = next;
-            err = swapcontext(&threads[prev]->ctx, &threads[next]->ctx);
-            if (err) {
-                printf("uthread_yield(): swapcontext() failed %s\n", strerror(err));
+            if (swapcontext(&threads[prev]->ctx, &threads[next]->ctx) == -1) {
                 return;
             }
         }
@@ -54,11 +51,11 @@ static void startup(void) {
 
 int uthread_create(uthread_t *t, void*(*start_routine)(void *), void *arg) {
     if (!t) {
-        printf("uthread_create(): unexpected value of the first argument\n");
+        errno = EINVAL;
         return -1;
     }
     if (!start_routine) {
-        printf("uthread_create(): unexpected value of the second argument\n");
+        errno = EINVAL;
         return -1;
     }
     int slot = -1;
@@ -71,8 +68,12 @@ int uthread_create(uthread_t *t, void*(*start_routine)(void *), void *arg) {
         }
     }
     if (slot == -1) {
-        if (n_used_slots >= MAX_THREADS) return -1;
+        if (n_used_slots >= MAX_THREADS) {
+            errno = EAGAIN;
+            return -1;
+        }
         slot = n_used_slots++;
+        assert(n_used_slots <= MAX_THREADS);
         is_new_slot = true;
     }
     uthread_t thread = &slots[slot];

@@ -21,7 +21,7 @@ int main(void) {
         uthread_t ts[2 * BATCH];
         for (int j = 0; j < BATCH; ++j) {
             if (uthread_create(&ts[j], short_func, (void *)(uintptr_t)(i + j)) == -1) {
-                printf("main: uthread_create() failed at %d\n", i + j);
+                perror("main: uthread_create() failed");
                 return -1;
             }
         }
