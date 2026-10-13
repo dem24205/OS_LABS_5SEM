@@ -90,16 +90,16 @@ int uthread_create(uthread_t *t, void*(*start_routine)(void *), void *arg) {
     return 0;
 }
 
-void uthread_join_all() {
+
+void uthread_join_all(void) {
     bool done;
-    int i;
     do {
         uthread_yield();
-        for (done = 1, i = 1; i < n_threads; ++i) {
+        done = true;
+        for (int i = 1; i < n_threads; ++i) {
             done &= threads[i]->is_finished;
         }
-    }
-    while (!done);
+    } while (!done);
 }
 
 int uthread_reused_slots() {
