@@ -25,6 +25,9 @@
 #define OUT_MAX 4096
 #define ERR_MAX 256
 #define HTTP_DEFAULT_PORT "80"
+#define HTTP_MINOR_POS  7      /* индекс цифры в "HTTP/1.1" */
+#define CHAR_ZERO       '0'
+#define CHAR_ONE        '1'
 
 static int send_all(int fd, const char *buf, size_t len) {
     size_t sent = 0;
@@ -156,6 +159,7 @@ static int download(struct entry *e, const struct dl_arg *a) {
 static void *downloader_thread(void *p) {
     struct dl_arg *a = p;
     struct entry *e = a->entry;
+    fprintf(stderr, "[miss] %s\n", e->key);
     int rc = download(e, a);
     if (rc != 0) cache_remove(e);
     entry_finish(e, rc == 0 ? ENTRY_DONE : ENTRY_FAILED);
@@ -241,6 +245,9 @@ static void *client_thread(void *arg) {
         }
         pthread_detach(tid);
     }
+    else {
+        fprintf(stderr, "[hit] %s\n", url);
+    }
 
     char buf[BUF_SIZE];
     size_t sent = 0;
@@ -251,6 +258,9 @@ static void *client_thread(void *arg) {
             if (sent == 0) send_error(client_fd, "502 Bad Gateway");
             break;
         }
+        if (sent <= HTTP_MINOR_POS && HTTP_MINOR_POS - sent < (size_t)n &&
+            buf[HTTP_MINOR_POS - sent] == CHAR_ONE)
+            buf[HTTP_MINOR_POS - sent] = CHAR_ZERO;
         if (send_all(client_fd, buf, (size_t)n) != 0) break;
         sent += (size_t)n;
     }
