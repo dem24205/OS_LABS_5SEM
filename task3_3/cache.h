@@ -3,6 +3,7 @@
 
 #include <pthread.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 enum entry_state {
@@ -16,7 +17,8 @@ struct entry {
     size_t len;              
     size_t cap;             
     enum entry_state state;
-    int refs; //сколько потоков держат запись              
+    int refs; //сколько потоков держат запись
+    uint64_t last_used;               
     pthread_mutex_t mutex;
     pthread_cond_t cond;     
 
@@ -34,5 +36,6 @@ ssize_t entry_read(struct entry *e, size_t offset, char *out, size_t max);
 
 struct entry *cache_acquire(const char *key, int *created);
 void cache_remove(struct entry *e);
-
+void cache_set_limit(size_t bytes);
+int cache_start_monitor(void); 
 #endif

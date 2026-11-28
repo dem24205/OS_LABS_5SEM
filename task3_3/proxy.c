@@ -29,26 +29,29 @@
 #define PORT_MAX 16
 #define MAX_HEADERS 64
 
-#define HTTP_URL_PREFIX         "http://"
-#define HTTP_URL_PREFIX_LEN     7
-#define HTTP_DEFAULT_PORT       "80"
-#define HTTP_METHOD_GET         "GET"
-#define HTTP_METHOD_GET_LEN     3
-#define HTTP_STATUS_OK          200
+#define HTTP_URL_PREFIX "http://"
+#define HTTP_URL_PREFIX_LEN 7
+#define HTTP_DEFAULT_PORT "80"
+#define HTTP_METHOD_GET "GET"
+#define HTTP_METHOD_GET_LEN 3
+#define HTTP_STATUS_OK 200
 
-#define HTTP_MINOR_POS          7      
-#define CHAR_ZERO               '0'
-#define CHAR_ONE                '1'
+#define HTTP_MINOR_POS 7      
+#define CHAR_ZERO '0'
+#define CHAR_ONE '1'
+
+#define DEFAULT_CACHE_MB 256
+#define BYTES_PER_MB (1024UL * 1024UL)
 
 #define REQUEST_FMT \
     "GET %s HTTP/1.0\r\nHost: %s\r\nConnection: close\r\n\r\n"
 #define REQUEST_FMT_PORT \
     "GET %s HTTP/1.0\r\nHost: %s:%s\r\nConnection: close\r\n\r\n"
 
-#define STATUS_BAD_REQUEST      "400 Bad Request"
-#define STATUS_NOT_IMPLEMENTED  "501 Not Implemented"
-#define STATUS_INTERNAL_ERROR   "500 Internal Server Error"
-#define STATUS_BAD_GATEWAY      "502 Bad Gateway"
+#define STATUS_BAD_REQUEST "400 Bad Request"
+#define STATUS_NOT_IMPLEMENTED "501 Not Implemented"
+#define STATUS_INTERNAL_ERROR "500 Internal Server Error"
+#define STATUS_BAD_GATEWAY "502 Bad Gateway"
 
 static int send_all(int fd, const char *buf, size_t len) {
     size_t sent = 0;
@@ -391,9 +394,11 @@ static void *client_thread(void *arg) {
 }
 
 static void usage(const char *prog) {
-    fprintf(stderr, "Usage: %s [-p port]\n"
-                    "  -p port   port to listen on (default %d)\n"
-                    "  -h        show this help\n", prog, DEFAULT_PORT);
+    fprintf(stderr, "Usage: %s [-p port] [-m cache_mb]\n"
+                    "  -p port       port to listen on (default %d)\n"
+                    "  -m cache_mb   cache size limit in MB (default %d)\n"
+                    "  -h            show this help\n",
+                    prog, DEFAULT_PORT, DEFAULT_CACHE_MB);
 }
 
 static int create_listener(int port) {
@@ -438,11 +443,15 @@ static void spawn_client(int cfd, const pthread_attr_t *attr) {
 }
 
 int main(int argc, char **argv) {
-    int port = DEFAULT_PORT, opt;
-    while ((opt = getopt(argc, argv, "p:h")) != -1) {
+        int port = DEFAULT_PORT, opt;
+    long cache_mb = DEFAULT_CACHE_MB;
+    while ((opt = getopt(argc, argv, "p:m:h")) != -1) {
         switch (opt) {
         case 'p':
             port = atoi(optarg);
+            break;
+        case 'm':
+            cache_mb = atol(optarg);
             break;
         case 'h':
             usage(argv[0]);
@@ -454,6 +463,14 @@ int main(int argc, char **argv) {
     }
     if (port <= 0 || port > MAX_PORT) {
         fprintf(stderr, "bad port\n");
+        return 1;
+    }
+    if (cache_mb <= 0) {
+        fprintf(stderr, "bad cache size\n");
+        return 1;
+    }
+    cache_set_limit((size_t)cache_mb * BYTES_PER_MB);
+    if (cache_start_monitor() != 0) {
         return 1;
     }
 
